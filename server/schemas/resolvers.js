@@ -79,7 +79,7 @@ const resolvers = {
             if (context.user) {
                 const updatedThought = await Thought.findOneAndUpdate(
                     { _id: thoughtId },
-                    { $push: { reaction: { reactionBody, username: context.user.username } } },
+                    { $push: { reactions: { reactionBody, username: context.user.username } } },
                     { new: true }
                 );
 

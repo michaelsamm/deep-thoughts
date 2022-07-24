@@ -1,6 +1,37 @@
 import React, { useState } from 'react';
 
+import { useMutation } from '@apollo/client';
+import { QUERY_THOUGHTS, QUERY_ME } from '../../utils/queries';
+import { ADD_THOUGHT } from '../../utils/mutations';
+
 const ThoughtForm = () => {
+    const [addThought, { error }] = useMutation(ADD_THOUGHT, {
+        update(cache, { data: { addThought } }) {
+            // must try/catch in case this doesn't exist yet
+            try {
+                // update me array's cache
+                const { me } = cache.readQuery({ query: QUERY_ME });
+                cache.writeQuery({
+                    query: QUERY_ME,
+                    data: { me: { ...me, thoughts: [...me.thoughts, addThought] } },
+                });
+            }
+            catch (e) {
+                console.warn("First thought insertion by user!")
+            }
+            
+            
+            // read what's currently in the cache
+            const { thoughts } = cache.readQuery({ query: QUERY_THOUGHTS });
+
+            // prepend newest thought to the front of the array
+            cache.writeQuery({
+                query: QUERY_THOUGHTS,
+                data: {thoughts: [addThought, ...thoughts] }
+            });
+        }
+    });
+    
     const [thoughtText, setText] = useState('');
     const [characterCount, setCharacterCount] = useState(0);
 
@@ -13,14 +44,27 @@ const ThoughtForm = () => {
 
     const handleFormSubmit = async event => {
         event.preventDefault();
-        setText('');
-        setCharacterCount(0);
+
+        try {
+            // add thought to database
+            await addThought({
+                variables: { thoughtText }
+            });
+
+            setText('');
+            setCharacterCount(0);
+        }
+        catch (e) {
+            console.error(e);
+        }
+        
     }
     
     return (
         <div>
             <p className={`m-0 ${characterCount === 280 ? 'text-error' : ''}`}>
                 Character Count: {characterCount}/280
+                {error && <span className='ml-2'>Something went wrong...</span>}
             </p>
             <form className='flex-row justify-center justify-space-between-md align-stretch' onSubmit={handleFormSubmit}>
                 <textarea
